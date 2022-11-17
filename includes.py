@@ -23,17 +23,23 @@ REGIONS = \
         EU (Ireland)
         Asia Pacific (Hong Kong)
         Asia Pacific (Mumbai)
-        Asia Pacific (Osaka - Local)
+        Asia Pacific (Osaka)
         Asia Pacific (Seoul)
         Asia Pacific (Singapore)
         Asia Pacific (Sydney)
         Asia Pacific (Tokyo)
+        Asia Pacific (Jakarta)
+        Africa (Cape Town)
         Canada(Central)
         EU (Frankfurt)
         EU (London)
         EU (Paris)
         EU (Stockholm)
+        EU (Spain)
+        EU (Milan)
+        EU (Zurich)
         Middle East (Bahrain)
+        Middle East (UAE)
         South America (Sao Paulo)
         US East (Ohio)
         US West (Los Angeles)
@@ -54,17 +60,23 @@ list_regions = [
     'EU (Ireland)',
     'Asia Pacific (Hong Kong)',
     'Asia Pacific (Mumbai)',
-    'Asia Pacific (Osaka - Local)',
+    'Asia Pacific (Osaka)',
     'Asia Pacific (Seoul)',
     'Asia Pacific (Singapore)',
     'Asia Pacific (Sydney)',
     'Asia Pacific (Tokyo)',
+    'Asia Pacific (Jakarta)',
+    'Africa (Cape Town)',
     'Canada(Central)',
     'EU (Frankfurt)',
     'EU (London)',
     'EU (Paris)',
     'EU (Stockholm)',
+    'EU (Spain)',
+    'EU (Milan)',
+    'EU (Zurich)',
     'Middle East (Bahrain)',
+    'Middle East (UAE)',
     'South America (Sao Paulo)',
     'US East (Ohio)',
     'US West (Los Angeles)',
@@ -94,11 +106,13 @@ region_map = {
     'US West (Oregon)': 'us-west-2',
     'Asia Pacific (Hong Kong)': 'ap-east-1',
     'Asia Pacific (Mumbai)': 'ap-south-1',
-    'Asia Pacific (Osaka-Local)': 'ap-northeast-3',
+    'Asia Pacific (Osaka)': 'ap-northeast-3',
     'Asia Pacific (Seoul)': 'ap-northeast-2',
     'Asia Pacific (Singapore)': 'ap-southeast-1',
     'Asia Pacific (Sydney)': 'ap-southeast-2',
     'Asia Pacific (Tokyo)': 'ap-northeast-1',
+    'Asia Pacific (Jakarta)':'ap-southeast-3',
+    'Asia Pacific (Sydney)':'ap-southeast-2',
     'Canada (Central)': 'ca-central-1',
     'China (Beijing)': 'cn-north-1',
     'China (Ningxia)': 'cn-northwest-1',
@@ -107,8 +121,13 @@ region_map = {
     'EU (London)': 'eu-west-2',
     'EU (Paris)': 'eu-west-3',
     'EU (Stockholm)': 'eu-north-1',
+    'EU (Milan)':'eu-south-1',
+    'EU (Spain)':'eu-south-2',
+    'EU (Zurich)':'eu-central-2',
     'Middle East (Bahrain)': 'me-south-1',
-    'South America (Sao Paulo)': 'sa-east-1'
+    'Middle East (UAE)':'me-central-1',
+    'South America (Sao Paulo)': 'sa-east-1',
+    'Africa (Cape Town)':'af-south-1'
 }
 
 def print_help():
@@ -156,8 +175,6 @@ def pricing_boto(region=None):
     else:
         l_region = region_map[region]
     session = boto3.Session(
-        aws_access_key_id=file_details['credentials']['access_key'],
-        aws_secret_access_key=file_details['credentials']['secret_key'],
         region_name=l_region,
     )
     return session.client('pricing'), session.client('ec2')
@@ -182,7 +199,7 @@ def get_ec2_pricing(region=P_REGION):
         print("Getting price updates for EC2s")
         delete_records(region)
     else:
-        print("Records are up-to-date")
+        #print("Records are up-to-date")
         # print_prices_from_db()
         return
     pricing, ec2s = pricing_boto(region=P_REGION)
@@ -268,6 +285,18 @@ def insert_records(rc: []):
     cobj.close()
     con.close()
 
+def get_ec2_price(instanceType: str):
+    print(instanceType)
+    """ select records """
+    con = sqlite3.connect(DB_NAME)
+    cobj = con.cursor()
+    res= cobj.execute( "select * from ec2 where instanceType = '"+instanceType+"'")
+    price=res.fetchone()[5]    
+    cobj.close()
+    con.close()
+    return price
+
+
 def print_services():
     """ Print list of all AWS services """
     pricing, ec2s = pricing_boto()
@@ -322,7 +351,8 @@ def get_ec2_spot_price(instances=[], os=None, region="None") -> defaultdict(None
         try:
             spot = ec2s.describe_spot_price_history(InstanceTypes=[ii, ], MaxResults=1,
                                                     ProductDescriptions=[os_map[os]])
-            results[ii] = float(spot['SpotPriceHistory'][0]['SpotPrice'])
+            results[ii] = spot['SpotPriceHistory'][0]                                       
+            #results[ii] = float(spot['SpotPriceHistory'][0]['SpotPrice'])
         except (IndexError,KeyError) as _:
             results[ii] = 0
     return results
